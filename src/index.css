@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #fcc809;
+    --color-secondary: #414342;
+    --color-accent: #010101;
+    --color-background: #ffffff;
+    --color-text: #010101;
+    --color-border: #fcc809;
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  
+  .btn-secondary {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .accent-border {
+    border-color: var(--color-accent);
+  }
+}
+
+/* Remove all custom styles that might conflict with Tailwind */
