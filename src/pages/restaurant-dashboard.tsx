@@ -17,6 +17,7 @@ type DashboardTab = 'orders' | 'menu' | 'analytics' | 'settings';
 const RestaurantDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('orders');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const { colors } = useTheme();
 
   // Mock restaurant data
@@ -53,6 +54,11 @@ const RestaurantDashboard: React.FC = () => {
 
   const handleTabChange = (tab: DashboardTab): void => {
     setActiveTab(tab);
+    setIsMobileMenuOpen(false); // Close mobile menu when tab changes
+  };
+
+  const toggleMobileMenu = (): void => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   if (isLoading) {
@@ -68,18 +74,31 @@ const RestaurantDashboard: React.FC = () => {
       {/* Dashboard Layout */}
       <div className="flex flex-col h-screen">
         {/* Header */}
-        <DashboardHeader restaurantName={restaurantData.name} />
+        <DashboardHeader 
+          restaurantName={restaurantData.name} 
+          toggleMobileMenu={toggleMobileMenu}
+        />
         
         {/* Main Content */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <DashboardSidebar 
-            activeTab={activeTab} 
-            onTabChange={handleTabChange} 
-          />
+          {/* Sidebar - hidden on mobile unless toggled */}
+          <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:block absolute md:relative z-20 h-full md:h-auto`}>
+            <DashboardSidebar 
+              activeTab={activeTab} 
+              onTabChange={handleTabChange} 
+            />
+          </div>
+          
+          {/* Overlay for mobile when sidebar is open */}
+          {isMobileMenuOpen && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            ></div>
+          )}
           
           {/* Content Area */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 w-full">
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, y: 10 }}
