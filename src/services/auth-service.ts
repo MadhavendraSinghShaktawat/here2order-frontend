@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, SERVER_URL, DEBUG, debugLog } from '../utils/env-config';
+import { API_URL, SERVER_URL, debugLog } from '../utils/env-config';
 
 // Define interfaces for request and response data
 interface LoginCredentials {

@@ -1,6 +1,13 @@
 import axios from 'axios';
 import { API_URL, SERVER_URL, debugLog } from './env-config';
 
+// Add this at the top of the file
+declare global {
+  interface Window {
+    testApiConnection: typeof testApiConnection;
+  }
+}
+
 // Test the API connection
 export const testApiConnection = async (): Promise<void> => {
   debugLog('Testing API connection...');

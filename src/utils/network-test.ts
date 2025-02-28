@@ -26,10 +26,12 @@ export const testNetworkConnectivity = async (): Promise<any> => {
       statusText: googleResponse.statusText
     };
     debugLog('[NETWORK TEST] Internet connectivity test successful');
-  } catch (error) {
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
     results.tests.internetConnectivity = {
       success: false,
-      error: error.message
+      error: error.message,
+      code: error.code
     };
     debugLog('[NETWORK TEST] Internet connectivity test failed:', error);
   }
@@ -46,7 +48,8 @@ export const testNetworkConnectivity = async (): Promise<any> => {
       data: healthResponse.data
     };
     debugLog('[NETWORK TEST] Server health test successful:', healthResponse.data);
-  } catch (error) {
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
     results.tests.serverHealth = {
       success: false,
       error: error.message,
@@ -69,7 +72,8 @@ export const testNetworkConnectivity = async (): Promise<any> => {
       headers: corsResponse.headers
     };
     debugLog('[NETWORK TEST] CORS test successful');
-  } catch (error) {
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
     results.tests.cors = {
       success: false,
       error: error.message,
@@ -83,7 +87,7 @@ export const testNetworkConnectivity = async (): Promise<any> => {
     debugLog('[NETWORK TEST] Testing server port with fetch');
     const portTestResponse = await fetch(`${SERVER_URL}/`, { 
       mode: 'no-cors',
-      timeout: 5000
+      signal: AbortSignal.timeout(5000)
     });
     results.tests.serverPort = {
       success: true,
@@ -91,10 +95,12 @@ export const testNetworkConnectivity = async (): Promise<any> => {
       statusText: portTestResponse.statusText
     };
     debugLog('[NETWORK TEST] Server port test successful');
-  } catch (error) {
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
     results.tests.serverPort = {
       success: false,
-      error: error.message
+      error: error.message,
+      code: error.code
     };
     debugLog('[NETWORK TEST] Server port test failed:', error);
   }
@@ -111,7 +117,8 @@ export const testNetworkConnectivity = async (): Promise<any> => {
       data: proxyResponse.data
     };
     debugLog('[NETWORK TEST] Proxy test successful:', proxyResponse.data);
-  } catch (error) {
+  } catch (err: unknown) {
+    const error = err as Error & { code?: string };
     results.tests.proxy = {
       success: false,
       error: error.message,

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
-import { toast } from 'react-hot-toast';
 
 // Dashboard components
 import { DashboardHeader } from '../components/dashboard/dashboard-header';

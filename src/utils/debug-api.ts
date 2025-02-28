@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { SERVER_URL, API_URL, debugLog } from './env-config';
 
 // Enhanced API debugging utility
