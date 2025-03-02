@@ -50,18 +50,50 @@ debugLog('Auth service initialized with API URL:', API_URL);
 debugLog('Server URL:', SERVER_URL);
 
 // After successful login or registration, store the auth data
-export const storeAuthData = (response: AuthResponse): void => {
+export const storeAuthData = (response: any): void => {
   debugLog('Storing auth data');
   
   try {
+    // Check if response has the expected structure
+    if (!response || !response.data) {
+      console.error('Invalid response structure:', response);
+      throw new Error('Invalid response structure');
+    }
+    
+    // Log the full response for debugging
+    console.log('Full response structure:', JSON.stringify(response.data));
+    
+    // The actual structure is response.data.data.user and response.data.data.token
+    const { status, data } = response.data;
+    
+    if (status !== 'success' || !data) {
+      console.error('Invalid response status or missing data:', response.data);
+      throw new Error('Invalid response status or missing data');
+    }
+    
+    const { token, user } = data;
+    
+    if (!token || !user) {
+      console.error('Missing token or user data:', data);
+      throw new Error('Missing token or user data');
+    }
+    
     // Store token in localStorage
-    localStorage.setItem('authToken', response.data.token);
+    localStorage.setItem('authToken', token);
     
     // Store user data in localStorage
-    localStorage.setItem('userData', JSON.stringify(response.data.user));
+    localStorage.setItem('userData', JSON.stringify(user));
+    
+    // Store restaurant ID separately for easy access
+    if (user && user.restaurantId) {
+      localStorage.setItem('restaurantId', user.restaurantId);
+      debugLog('Restaurant ID stored:', user.restaurantId);
+    } else {
+      debugLog('No restaurant ID found in user data');
+    }
     
     // Set the token in axios default headers for subsequent requests
-    axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     debugLog('Auth data stored successfully');
   } catch (error) {

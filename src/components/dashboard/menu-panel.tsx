@@ -1,721 +1,345 @@
-import React, { useState, useEffect } from 'react';
-import { apiService } from '../../services/api-service';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import { apiService } from '../../services/api-service';
+import { LoadingSpinner } from '../ui/loading-spinner';
+import { CategoryList } from './menu/category-list';
+import { MenuItemList } from './menu/menu-item-list';
+import { CategoryForm } from './menu/category-form';
+import { MenuItem, Category, CategoriesResponse, MenuItemsResponse, DeleteResponse, CategoryFormData } from '../../types/menu-types';
 
-// Define response types
+// Define proper types for API responses
 interface ApiResponse<T> {
-  status: string;
+  status: 'success' | 'error';
   data: T;
+  message?: string;
 }
 
-interface CategoriesResponse {
-  categories: Category[];
-}
-
-interface MenuItemsResponse {
-  items: MenuItem[];
-}
-
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  categoryId: string;
-  imageUrl: string;
-  isActive: boolean;
-  isAvailable: boolean;
-  preparationTime: number;
-  sortOrder: number;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: boolean;
-  sortOrder: number;
-}
-
+/**
+ * MenuPanel component for managing restaurant menu categories and items
+ */
 export const MenuPanel: React.FC = () => {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  // State for categories and menu items
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('All');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState<boolean>(false);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  
+  // Loading and modal states
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState<boolean>(false);
+  const [isMenuItemsLoading, setIsMenuItemsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState<boolean>(false);
   
-  // New item form state
-  const [newItem, setNewItem] = useState({
-    name: '',
-    description: '',
-    price: '',
-    categoryId: '',
-    imageUrl: 'https://example.com/images/default.jpg',
-    isActive: true,
-    isAvailable: true,
-    preparationTime: 15,
-    sortOrder: 1
-  });
-  
-  // New category form state
-  const [newCategory, setNewCategory] = useState({
-    name: '',
-    description: '',
-    isActive: true,
-    sortOrder: 1
-  });
+  // Edit states
+  const [editingCategory, setEditingCategory] = useState<Category | undefined>(undefined);
 
-  useEffect(() => {
-    // Fetch menu items and categories
-    fetchCategories();
-    fetchMenuItems();
-  }, []);
-
-  const fetchCategories = async (): Promise<void> => {
+  /**
+   * Fetch categories from API
+   */
+  const fetchCategories = useCallback(async (): Promise<void> => {
     try {
-      setIsLoading(true);
+      setIsCategoriesLoading(true);
       
-      // Use the API service with proper type annotation
-      const response = await apiService.get<ApiResponse<CategoriesResponse>>('/menu/categories');
+      // Get the restaurant ID from localStorage
+      const restaurantId = localStorage.getItem('restaurantId');
       
-      if (response.status === 'success') {
-        setCategories(response.data.categories || []);
+      if (!restaurantId) {
+        console.error('Restaurant ID not found in localStorage');
+        toast.error('Could not fetch categories: Restaurant ID not found');
+        return;
+      }
+      
+      // Use the API service to fetch categories with proper typing
+      const response = await apiService.get<ApiResponse<CategoriesResponse>>(`/menu/categories/${restaurantId}`);
+      
+      if (response.status === 'success' && response.data.categories) {
+        setCategories(response.data.categories);
+      } else {
+        console.error('Invalid categories response:', response);
+        toast.error('Failed to fetch categories');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Use mock data if API fails
-      setCategories([
-        {
-          id: "67b30e48dc00498b145b9828",
-          name: "Pizza",
-          description: "Primary dishes served as the main meal",
-          isActive: true,
-          sortOrder: 1
-        },
-        {
-          id: "67c1f8379489ea75e572bfa0",
-          name: "Desert",
-          description: "Primary dishes served as the main meal",
-          isActive: true,
-          sortOrder: 1
-        }
-      ]);
-      
-      if (axios.isAxiosError(error) && error.code === 'ERR_NETWORK') {
-        toast.error('Network error. Using sample data for now.');
-      } else {
-        toast.error('Failed to load categories. Using sample data for now.');
-      }
+      toast.error('Failed to fetch categories. Please try again later.');
     } finally {
+      setIsCategoriesLoading(false);
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMenuItems = async (): Promise<void> => {
+  /**
+   * Fetch menu items from API
+   */
+  const fetchMenuItems = useCallback(async (): Promise<void> => {
     try {
-      setIsLoading(true);
+      setIsMenuItemsLoading(true);
       
-      // Use the API service with proper type annotation
-      const response = await apiService.get<ApiResponse<MenuItemsResponse>>('/menu/items');
+      // Get the restaurant ID from localStorage
+      const restaurantId = localStorage.getItem('restaurantId');
       
-      if (response.status === 'success') {
-        // Parse the categoryId from string to object if needed
-        const items = response.data.items.map((item: any) => {
-          // Extract categoryId from the string if it's in a format like "{ _id: new ObjectId('67b30e48dc00498b145b9828'), name: 'Pizza' }"
-          if (typeof item.categoryId === 'string' && item.categoryId.includes('ObjectId')) {
-            const match = item.categoryId.match(/'([^']+)'/);
-            if (match && match[1]) {
-              item.categoryId = match[1];
-            }
-          }
-          return item;
-        });
-        
-        setMenuItems(items || []);
+      if (!restaurantId) {
+        console.error('Restaurant ID not found in localStorage');
+        toast.error('Could not fetch menu items: Restaurant ID not found');
+        return;
+      }
+      
+      // Use the API service to fetch menu items with proper typing
+      const response = await apiService.get<ApiResponse<MenuItemsResponse>>(`/menu/items/${restaurantId}`);
+      
+      if (response.status === 'success' && response.data.menuItems) {
+        setMenuItems(response.data.menuItems);
+      } else {
+        console.error('Invalid menu items response:', response);
+        toast.error('Failed to fetch menu items');
       }
     } catch (error) {
       console.error('Error fetching menu items:', error);
-      // Use mock data if API fails
-      setMenuItems([
-        {
-          id: "67b30e8bdc00498b145b982d",
-          name: "Margherita Pizza",
-          description: "Fresh tomatoes, mozzarella, basil, and olive oil",
-          price: 12.99,
-          category: "Pizza",
-          categoryId: "67b30e48dc00498b145b9828",
-          imageUrl: "https://example.com/images/margherita.jpg",
-          isActive: true,
-          isAvailable: true,
-          preparationTime: 15,
-          sortOrder: 1
-        },
-        {
-          id: "67b31b07ddaada5dea645a04",
-          name: "Paneer Pizza",
-          description: "Fresh tomatoes, mozzarella, basil, and olive oil",
-          price: 12.99,
-          category: "Pizza",
-          categoryId: "67b30e48dc00498b145b9828",
-          imageUrl: "https://example.com/images/margherita.jpg",
-          isActive: true,
-          isAvailable: true,
-          preparationTime: 15,
-          sortOrder: 1
-        }
-      ]);
-      
-      if (axios.isAxiosError(error) && error.code === 'ERR_NETWORK') {
-        toast.error('Network error. Using sample data for now.');
-      } else {
-        toast.error('Failed to load menu items. Using sample data for now.');
-      }
+      toast.error('Failed to fetch menu items. Please try again later.');
     } finally {
+      setIsMenuItemsLoading(false);
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>): void => {
-    const { name, value } = e.target;
-    setNewItem(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handleCategoryInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
-    const { name, value } = e.target;
-    setNewCategory(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const { name, checked } = e.target;
-    setNewItem(prev => ({ ...prev, [name]: checked }));
-  };
-  
-  const handleCategoryCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const { name, checked } = e.target;
-    setNewCategory(prev => ({ ...prev, [name]: checked }));
-  };
-
-  const handleAddItem = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchCategories(), fetchMenuItems()]);
+    };
     
-    // Validate form
-    if (!newItem.name || !newItem.description || !newItem.price || !newItem.categoryId) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    
+    loadData();
+  }, [fetchCategories, fetchMenuItems]);
+
+  /**
+   * Handle adding or updating a category
+   */
+  const handleAddCategory = async (categoryData: CategoryFormData): Promise<void> => {
     try {
       setIsSubmitting(true);
       
-      // Make sure we're sending the correct data structure
+      // Create payload for category creation
       const payload = {
-        name: newItem.name,
-        description: newItem.description,
-        price: parseFloat(newItem.price as string),
-        categoryId: newItem.categoryId,
-        imageUrl: newItem.imageUrl || 'https://example.com/images/default.jpg',
-        isActive: newItem.isActive,
-        isAvailable: newItem.isAvailable,
-        preparationTime: newItem.preparationTime || 15,
-        sortOrder: newItem.sortOrder || 1,
-        restaurantId: localStorage.getItem('restaurantId')
+        name: categoryData.name,
+        description: categoryData.description,
+        isActive: categoryData.isActive,
+        sortOrder: categoryData.sortOrder || 1
       };
       
-      console.log('Trying fetch API directly...');
+      let response;
       
-      const token = localStorage.getItem('authToken');
-      const fetchResponse = await fetch('http://localhost:3000/api/v1/menu/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('Fetch response status:', fetchResponse.status);
-      
-      if (fetchResponse.ok) {
-        const data = await fetchResponse.json();
-        console.log('Fetch response data:', data);
-        
-        toast.success('Menu item added successfully');
-        setIsAddModalOpen(false);
-        fetchMenuItems();
-        return;
+      if (editingCategory) {
+        // Update existing category
+        response = await apiService.put<ApiResponse<{ id: string; message: string }>>(
+          `/menu/categories/${editingCategory.id}`, 
+          payload
+        );
+        toast.success('Category updated successfully');
       } else {
-        console.error('Fetch error status:', fetchResponse.status);
-        const errorText = await fetchResponse.text();
-        console.error('Fetch error text:', errorText);
+        // Create new category
+        response = await apiService.post<ApiResponse<{ id: string; message: string }>>(
+          '/menu/categories', 
+          payload
+        );
+        toast.success('Category added successfully');
       }
-    } catch (fetchError) {
-      console.error('Fetch API error:', fetchError);
+      
+      // Check if the response has the expected structure
+      if (response && response.status === 'success') {
+        // Close modal and refresh categories
+        setIsAddCategoryModalOpen(false);
+        setEditingCategory(undefined);
+        fetchCategories();
+      } else {
+        console.error('Failed to save category:', response);
+        toast.error('Failed to save category');
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Failed to save category. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  const handleAddCategory = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    
-    // Validate form
-    if (!newCategory.name || !newCategory.description) {
-      toast.error('Please fill in all required fields');
+
+  /**
+   * Handle deleting a category
+   */
+  const handleDeleteCategory = async (categoryId: string): Promise<void> => {
+    if (!categoryId) {
+      toast.error('Invalid category ID');
       return;
     }
     
-    setIsSubmitting(true);
+    // Confirm before deleting
+    if (!window.confirm('Are you sure you want to delete this category? This will also delete all menu items in this category.')) {
+      return;
+    }
     
     try {
-      const response = await apiService.post<ApiResponse<any>>('/menu/categories', newCategory);
+      setIsCategoriesLoading(true);
       
-      if (response.status === 'success') {
-        toast.success('Category added successfully');
-        setIsAddCategoryModalOpen(false);
-        setNewCategory({
-          name: '',
-          description: '',
-          isActive: true,
-          sortOrder: 1
-        });
-        fetchCategories(); // Refresh categories
+      // Use the API service to delete the category
+      const response = await apiService.delete<ApiResponse<DeleteResponse>>(`/menu/categories/${categoryId}`);
+      
+      // Check if the response has the expected structure
+      if (response && response.status === 'success') {
+        toast.success(response.data?.message || 'Category deleted successfully');
+        
+        // Update the categories list by removing the deleted category
+        setCategories(prevCategories => 
+          prevCategories.filter(category => category.id !== categoryId)
+        );
+        
+        // If we're viewing this category, switch to 'all'
+        if (activeCategory === categoryId) {
+          setActiveCategory('all');
+        }
+        
+        // Refresh menu items as they might be affected
+        fetchMenuItems();
+      } else {
+        console.error('Failed to delete category:', response);
+        toast.error('Failed to delete category');
       }
     } catch (error) {
-      console.error('Error adding category:', error);
-      // Error handling is now done in the API service
+      console.error('Error deleting category:', error);
+      toast.error('Failed to delete category. Please try again later.');
     } finally {
-      setIsSubmitting(false);
+      setIsCategoriesLoading(false);
     }
+  };
+
+  /**
+   * Handle deleting a menu item
+   */
+  const handleDeleteMenuItem = async (itemId: string): Promise<void> => {
+    if (!itemId) {
+      toast.error('Invalid menu item ID');
+      return;
+    }
+    
+    // Confirm before deleting
+    if (!window.confirm('Are you sure you want to delete this menu item?')) {
+      return;
+    }
+    
+    try {
+      setIsMenuItemsLoading(true);
+      
+      // Use the API service to delete the menu item
+      const response = await apiService.delete<ApiResponse<DeleteResponse>>(`/menu/items/${itemId}`);
+      
+      if (response && response.status === 'success') {
+        toast.success(response.data?.message || 'Menu item deleted successfully');
+        
+        // Update the menu items list by removing the deleted item
+        setMenuItems(prevItems => 
+          prevItems.filter(item => item.id !== itemId)
+        );
+      } else {
+        console.error('Failed to delete menu item:', response);
+        toast.error('Failed to delete menu item');
+      }
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete menu item. Please try again later.');
+    } finally {
+      setIsMenuItemsLoading(false);
+    }
+  };
+
+  /**
+   * Handle editing a category
+   */
+  const handleEditCategory = (category: Category): void => {
+    setEditingCategory(category);
+    setIsAddCategoryModalOpen(true);
+  };
+
+  /**
+   * Handle refreshing data
+   */
+  const handleRefresh = async (): Promise<void> => {
+    setIsLoading(true);
+    await Promise.all([fetchCategories(), fetchMenuItems()]);
   };
 
   return (
     <div className="h-full">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your restaurant menu</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Management</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage your restaurant's menu items and categories</p>
         </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => setIsAddCategoryModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Add Category
-          </button>
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 bg-flamingo text-white rounded-lg hover:bg-flamingo/90 transition-colors"
-          >
-            Add Item
-          </button>
-        </div>
-      </div>
-      
-      {/* Category Tabs */}
-      <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
+        
         <button
-          onClick={() => setActiveCategory('All')}
-          className={`px-4 py-2 rounded-lg ${
-            activeCategory === 'All' 
-              ? 'bg-flamingo/10 text-flamingo' 
-              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-          }`}
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-full transition-colors"
+          title="Refresh data"
         >
-          All
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
         </button>
-        {categories.map(category => (
-          <button
-            key={category.id}
-            onClick={() => setActiveCategory(category.id)}
-            className={`px-4 py-2 rounded-lg ${
-              activeCategory === category.id 
-                ? 'bg-flamingo/10 text-flamingo' 
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            {category.name}
-          </button>
-        ))}
       </div>
       
-      {/* Menu Items */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Category
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Price
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center">
-                    <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-flamingo"></div>
-                    </div>
-                  </td>
-                </tr>
-              ) : menuItems.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    No menu items found
-                  </td>
-                </tr>
-              ) : (
-                menuItems
-                  .filter(item => activeCategory === 'All' || item.categoryId === activeCategory)
-                  .map(item => (
-                    <tr key={item.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <img className="h-10 w-10 rounded-full object-cover" src={item.imageUrl} alt={item.name} />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{item.name}</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">{item.description.substring(0, 50)}...</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {categories.find(cat => cat.id === item.categoryId)?.name || 'Unknown'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">${item.price.toFixed(2)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          item.isAvailable 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {item.isAvailable ? 'Available' : 'Unavailable'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">
-                          Edit
-                        </button>
-                        <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {/* Add Item Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Add Menu Item</h3>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddItem} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={newItem.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Price ($) *
-                  </label>
-                  <input
-                    type="text"
-                    id="price"
-                    name="price"
-                    value={newItem.price}
-                    onChange={handleInputChange}
-                    pattern="^\d+(\.\d{1,2})?$"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Category *
-                  </label>
-                  <select
-                    id="categoryId"
-                    name="categoryId"
-                    value={newItem.categoryId}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label htmlFor="preparationTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Preparation Time (minutes) *
-                  </label>
-                  <input
-                    type="number"
-                    id="preparationTime"
-                    name="preparationTime"
-                    value={newItem.preparationTime}
-                    onChange={handleInputChange}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description *
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={newItem.description}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Image URL *
-                  </label>
-                  <input
-                    type="text"
-                    id="imageUrl"
-                    name="imageUrl"
-                    value={newItem.imageUrl}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="sortOrder" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Sort Order *
-                  </label>
-                  <input
-                    type="number"
-                    id="sortOrder"
-                    name="sortOrder"
-                    value={newItem.sortOrder}
-                    onChange={handleInputChange}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <div className="flex space-x-6">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isActive"
-                        name="isActive"
-                        checked={newItem.isActive}
-                        onChange={handleCheckboxChange}
-                        className="h-4 w-4 text-flamingo focus:ring-flamingo border-gray-300 rounded"
-                      />
-                      <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                        Active
-                      </label>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isAvailable"
-                        name="isAvailable"
-                        checked={newItem.isAvailable}
-                        onChange={handleCheckboxChange}
-                        className="h-4 w-4 text-flamingo focus:ring-flamingo border-gray-300 rounded"
-                      />
-                      <label htmlFor="isAvailable" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                        Available
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-flamingo text-white rounded-lg hover:bg-flamingo/90 transition-colors disabled:opacity-70 flex items-center"
-                >
-                  {isSubmitting && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  )}
-                  Add Item
-                </button>
-              </div>
-            </form>
-          </div>
+      {isLoading && (
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner size="lg" color="#f06236" />
         </div>
       )}
       
-      {/* Add Category Modal */}
-      {isAddCategoryModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Add Category</h3>
-              <button 
-                onClick={() => setIsAddCategoryModalOpen(false)}
-                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddCategory} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Category Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="categoryName"
-                    name="name"
-                    value={newCategory.name}
-                    onChange={handleCategoryInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="categoryDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description *
-                  </label>
-                  <textarea
-                    id="categoryDescription"
-                    name="description"
-                    value={newCategory.description}
-                    onChange={handleCategoryInputChange}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label htmlFor="categorySortOrder" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Sort Order *
-                  </label>
-                  <input
-                    type="number"
-                    id="categorySortOrder"
-                    name="sortOrder"
-                    value={newCategory.sortOrder}
-                    onChange={handleCategoryInputChange}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-flamingo/50"
-                    required
-                  />
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="categoryIsActive"
-                    name="isActive"
-                    checked={newCategory.isActive}
-                    onChange={handleCategoryCheckboxChange}
-                    className="h-4 w-4 text-flamingo focus:ring-flamingo border-gray-300 rounded"
-                  />
-                  <label htmlFor="categoryIsActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Active
-                  </label>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 flex items-center"
-                >
-                  {isSubmitting && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  )}
-                  Add Category
-                </button>
-              </div>
-            </form>
+      {!isLoading && (
+        <div className="space-y-8">
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => {
+                setEditingCategory(undefined);
+                setIsAddCategoryModalOpen(true);
+              }}
+              className="px-4 py-2 bg-flamingo text-white rounded-lg hover:bg-flamingo/90 transition-colors flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Category
+            </button>
           </div>
+          
+          {/* Categories section */}
+          <CategoryList
+            categories={categories}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onEditCategory={handleEditCategory}
+            isLoading={isCategoriesLoading}
+          />
+          
+          {/* Menu items section */}
+          <MenuItemList
+            menuItems={menuItems}
+            categories={categories}
+            activeCategory={activeCategory}
+            onEditItem={() => {}} // Placeholder for now
+            onDeleteItem={handleDeleteMenuItem}
+            isLoading={isMenuItemsLoading}
+          />
+          
+          {/* Category form modal */}
+          <CategoryForm
+            isOpen={isAddCategoryModalOpen}
+            onClose={() => {
+              setIsAddCategoryModalOpen(false);
+              setEditingCategory(undefined);
+            }}
+            onSubmit={handleAddCategory}
+            initialData={editingCategory}
+            isSubmitting={isSubmitting}
+          />
         </div>
       )}
     </div>
