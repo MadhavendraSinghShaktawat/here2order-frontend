@@ -37,7 +37,7 @@ export interface CategoriesResponse {
 }
 
 export interface MenuItemsResponse {
-  menuItems: MenuItem[];
+  items: MenuItem[];
 }
 
 export interface DeleteResponse {
