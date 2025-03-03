@@ -1,7 +1,7 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   text-align: center;
 }
 
@@ -39,4 +39,32 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Ensure the app container uses full width */
+.App {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove any max-width constraints that might be limiting the layout */
+.container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* Ensure the main content area uses the full width */
+main {
+  width: 100%;
+  flex: 1;
+}
+
+/* Fix for the dashboard layout */
+.dashboard-layout {
+  display: flex;
+  width: 100%;
 }

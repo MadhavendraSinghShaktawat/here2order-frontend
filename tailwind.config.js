@@ -20,6 +20,12 @@ export default {
         'tonysPink': '#e7ac94',
         'hacienda': '#8b7813',
       },
+      width: {
+        'screen': '100vw',
+      },
+      height: {
+        'screen': '100vh',
+      },
     },
   },
   plugins: [],

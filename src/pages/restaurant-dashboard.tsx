@@ -63,16 +63,16 @@ const RestaurantDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <LoadingSpinner size="lg" color={colors.primary} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Dashboard Layout */}
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-screen w-full">
         {/* Header */}
         <DashboardHeader 
           restaurantName={restaurantData.name} 
@@ -80,7 +80,7 @@ const RestaurantDashboard: React.FC = () => {
         />
         
         {/* Main Content */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden w-full">
           {/* Sidebar - hidden on mobile unless toggled */}
           <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:block absolute md:relative z-20 h-full md:h-auto`}>
             <DashboardSidebar 
@@ -105,7 +105,7 @@ const RestaurantDashboard: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="h-full"
+              className="h-full w-full"
             >
               {activeTab === 'orders' && (
                 <OrdersPanel 
