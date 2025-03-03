@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_URL, SERVER_URL, debugLog } from '../utils/env-config';
+import { toast } from 'react-hot-toast';
 
 // Define interfaces for request and response data
 interface LoginCredentials {
@@ -190,4 +191,86 @@ export const isAuthenticated = (): boolean => {
 export const getCurrentUser = (): any => {
   const userData = localStorage.getItem('userData');
   return userData ? JSON.parse(userData) : null;
+};
+
+/**
+ * Service for handling authentication-related operations
+ */
+export const AuthService = {
+  /**
+   * Logs in a user with email and password
+   * @param email User's email
+   * @param password User's password
+   * @returns User data if login successful, null otherwise
+   */
+  async login(email: string, password: string) {
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important for cookies
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        // Store auth token if provided
+        if (data.data.token) {
+          localStorage.setItem('authToken', data.data.token);
+        }
+        return data.data.user;
+      } else {
+        throw new Error(data.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Logs out the current user
+   * @returns True if logout successful, false otherwise
+   */
+  async logout() {
+    try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        credentials: 'include', // Important for cookies
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        // Clear auth token
+        localStorage.removeItem('authToken');
+        toast.success('Logged out successfully');
+        return true;
+      } else {
+        throw new Error(data.message || 'Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error(error instanceof Error ? error.message : 'Logout failed');
+      return false;
+    }
+  },
+
+  /**
+   * Checks if user is currently authenticated
+   * @returns True if authenticated, false otherwise
+   */
+  isAuthenticated() {
+    return !!localStorage.getItem('authToken');
+  },
 }; 

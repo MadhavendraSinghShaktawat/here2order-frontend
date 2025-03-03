@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/theme-context';
 import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { AuthService } from '../services/auth-service';
 
 // Dashboard components
 import { DashboardHeader } from '../components/dashboard/dashboard-header';
@@ -10,17 +11,23 @@ import { OrdersPanel } from '../components/dashboard/orders-panel';
 import { MenuPanel } from '../components/dashboard/menu-panel';
 import { AnalyticsPanel } from '../components/dashboard/analytics-panel';
 import { SettingsPanel } from '../components/dashboard/settings-panel';
+import { TablesPanel } from '../components/dashboard/tables-panel';
 
-// Types
-type DashboardTab = 'orders' | 'menu' | 'analytics' | 'settings';
-
+/**
+ * Restaurant Dashboard component that serves as the main interface for restaurant management
+ * Provides access to orders, menu, analytics, tables, and settings
+ */
 const RestaurantDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('orders');
+  const { mode } = useTheme();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>('menu');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const { colors } = useTheme();
+  
+  // The restaurant ID from the API response
+  const restaurantId = "67c1b3da52ba0c14697e1ff8";
 
-  // Mock restaurant data
+  // Restaurant data
   const restaurantData = {
     name: 'Here2Order Restaurant',
     orders: {
@@ -30,105 +37,93 @@ const RestaurantDashboard: React.FC = () => {
       completed: 12
     },
     revenue: {
-      today: 1250.75,
-      week: 8320.50,
-      month: 32150.25
+      today: 1250,
+      week: 8750,
+      month: 35000
     },
     popularItems: [
-      { name: 'Margherita Pizza', orders: 124 },
-      { name: 'Chicken Burger', orders: 98 },
-      { name: 'Caesar Salad', orders: 67 },
-      { name: 'Pasta Carbonara', orders: 52 },
-      { name: 'Chocolate Cake', orders: 45 }
+      { name: 'Margherita Pizza', orders: 42 },
+      { name: 'Chicken Wings', orders: 36 },
+      { name: 'Caesar Salad', orders: 28 },
+      { name: 'Chocolate Cake', orders: 22 }
     ]
   };
-
+  
+  /**
+   * Renders the appropriate content panel based on the active tab
+   * @returns The component for the selected tab
+   */
+  const renderContent = () => {
+    switch(activeTab) {
+      case 'orders':
+        return <OrdersPanel orders={restaurantData.orders} />;
+      case 'menu':
+        return <MenuPanel />;
+      case 'analytics':
+        return <AnalyticsPanel 
+          revenue={restaurantData.revenue}
+          popularItems={restaurantData.popularItems}
+        />;
+      case 'settings':
+        return <SettingsPanel />;
+      case 'tables':
+        return <TablesPanel restaurantId={restaurantId} />;
+      default:
+        return <MenuPanel />;
+    }
+  };
+  
+  // Check authentication and load data
   useEffect(() => {
+    // Check if user is authenticated
+    if (!AuthService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    
     // Simulate loading data
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, []);
-
-  const handleTabChange = (tab: DashboardTab): void => {
-    setActiveTab(tab);
-    setIsMobileMenuOpen(false); // Close mobile menu when tab changes
-  };
-
-  const toggleMobileMenu = (): void => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
+  }, [navigate]);
+  
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <LoadingSpinner size="lg" color={colors.primary} />
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
-
+  
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      {/* Dashboard Layout */}
-      <div className="flex flex-col h-screen w-full">
-        {/* Header */}
-        <DashboardHeader 
-          restaurantName={restaurantData.name} 
-          toggleMobileMenu={toggleMobileMenu}
-        />
+    <div className={`h-screen flex flex-col ${mode === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
+      <DashboardHeader 
+        restaurantName={restaurantData.name}
+        toggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      />
+      
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className={`md:block ${isMobileMenuOpen ? 'block' : 'hidden'} md:relative absolute z-20 h-full`}>
+          <DashboardSidebar 
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+        </div>
         
-        {/* Main Content */}
-        <div className="flex flex-1 overflow-hidden w-full">
-          {/* Sidebar - hidden on mobile unless toggled */}
-          <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:block absolute md:relative z-20 h-full md:h-auto`}>
-            <DashboardSidebar 
-              activeTab={activeTab} 
-              onTabChange={handleTabChange} 
-            />
-          </div>
-          
-          {/* Overlay for mobile when sidebar is open */}
-          {isMobileMenuOpen && (
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            ></div>
-          )}
-          
-          {/* Content Area */}
-          <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 w-full">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="h-full w-full"
-            >
-              {activeTab === 'orders' && (
-                <OrdersPanel 
-                  orders={restaurantData.orders} 
-                />
-              )}
-              
-              {activeTab === 'menu' && (
-                <MenuPanel />
-              )}
-              
-              {activeTab === 'analytics' && (
-                <AnalyticsPanel 
-                  revenue={restaurantData.revenue}
-                  popularItems={restaurantData.popularItems}
-                />
-              )}
-              
-              {activeTab === 'settings' && (
-                <SettingsPanel />
-              )}
-            </motion.div>
-          </main>
+        {/* Mobile overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
+        
+        {/* Content Area */}
+        <div className={`flex-1 overflow-auto p-4 ${mode === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
+          {renderContent()}
         </div>
       </div>
     </div>

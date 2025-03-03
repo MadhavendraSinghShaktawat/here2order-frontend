@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../../context/theme-context';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -10,12 +11,14 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   activeTab, 
   onTabChange 
 }) => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const [collapsed, setCollapsed] = useState<boolean>(false);
   
   const navItems = [
     { id: 'orders', label: 'Orders', icon: 'shopping-bag' },
     { id: 'menu', label: 'Menu', icon: 'book-open' },
     { id: 'analytics', label: 'Analytics', icon: 'chart-bar' },
+    { id: 'tables', label: 'Tables', icon: 'table' },
     { id: 'settings', label: 'Settings', icon: 'cog' }
   ];
   
@@ -39,6 +42,12 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         );
+      case 'table':
+        return (
+          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+        );
       case 'cog':
         return (
           <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,15 +60,27 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     }
   };
   
+  const toggleSidebar = () => {
+    setCollapsed(!collapsed);
+  };
+  
   return (
-    <div className="h-full w-56 bg-gray-900 text-white shadow-lg">
+    <div className={`h-full ${collapsed ? 'w-16' : 'w-56'} bg-gray-900 dark:bg-gray-900 text-white shadow-lg transition-all duration-300 relative`}>
+      <button 
+        onClick={toggleSidebar}
+        className="absolute -right-3 top-4 bg-gray-900 text-white p-1 rounded-full shadow-md hover:bg-gray-800 transition-colors"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <FiChevronRight size={16} /> : <FiChevronLeft size={16} />}
+      </button>
+      
       <nav className="mt-2 px-2">
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ease-in-out ${
+                className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ease-in-out ${
                   activeTab === item.id
                     ? 'bg-gray-800 text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
@@ -67,9 +88,10 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 style={{
                   borderLeft: activeTab === item.id ? `3px solid ${colors.primary}` : '3px solid transparent'
                 }}
+                title={collapsed ? item.label : ''}
               >
-                <span className="mr-3">{getIcon(item.icon)}</span>
-                <span className="text-sm">{item.label}</span>
+                <span className={collapsed ? '' : 'mr-3'}>{getIcon(item.icon)}</span>
+                {!collapsed && <span className="text-xs">{item.label}</span>}
               </button>
             </li>
           ))}

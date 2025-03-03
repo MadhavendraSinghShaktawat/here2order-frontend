@@ -88,24 +88,24 @@ export const OrdersPanel: React.FC<OrdersPanelProps> = ({ orders }) => {
           {/* Sample order items */}
           <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
             <div className="flex justify-between items-center mb-1">
-              <div className="flex items-center">
+                    <div className="flex items-center">
                 <span className="text-xs font-medium text-gray-900 dark:text-white">ORD-001</span>
                 <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Pending</span>
-              </div>
+                    </div>
               <span className="text-sm font-medium text-gray-900 dark:text-white">$18.99</span>
-            </div>
+                    </div>
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-500 dark:text-gray-400">John Doe • 10 mins ago</span>
               <div className="flex space-x-2">
                 <button className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors">
-                  Start Preparing
-                </button>
+                          Start Preparing
+                        </button>
                 <button className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors">
-                  Details
-                </button>
-              </div>
-            </div>
-          </div>
+                        Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
           
           <div className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
             <div className="flex justify-between items-center mb-1">
